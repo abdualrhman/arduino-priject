@@ -1,10 +1,10 @@
 // board_2
- #include <ESP8266WiFi.h>
+#include <ESP8266WiFi.h>
 #include <PubSubClient.h>
  
 // Connect to the WiFi
 const char* ssid = "AndroidAP9921"; //fill in the network name
-const char* password = "oqjy0663"; //fill in the password
+const char* password = "*******"; //fill in the password
 const char* mqtt_server = "influx.itu.dk"; 
  
 WiFiClient espClient;
