@@ -1,150 +1,233 @@
-#include <SPI.h>
-#include <WiFi.h>
-//#include <Ethernet.h>
+// board 1
+#include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-
-// Update these with values suitable for your network.
-byte mac[]    = {0x90, 0xA2, 0xDA, 0x0D, 0x1D, 0xB5};
-IPAddress ip(10, 26, 101, 153);
-char server[] = "influx.itu.dk";
-
-char ssid[] = "sensors";
-//char pass[] = "oqjy0663";
-char pass[] = "n0n53n53";
-int status = WL_IDLE_STATUS;     // the Wifi radio's status
-
-unsigned long lastMillis = 0;
-
-//declear button pins
-const int button1Pin = 2;
-const int button2Pin = 3;
-const int button3Pin = 4;
-int button1State, button2State, button3State;
-
-// declear LED pins
-int callMe_led = 5;
-int goToLuch_led = 6;
-int comeHere_led = 8;
+#include "SerialMP3Player.h"
 
 
-void ledFunc(int ledPin){
-    digitalWrite(ledPin, HIGH);
-    delay(250);
-    digitalWrite(ledPin, LOW);
-    delay(250);
-    digitalWrite(ledPin, HIGH);
-    delay(250);
-    digitalWrite(ledPin, LOW);
-    delay(250);
-    digitalWrite(ledPin, HIGH);
-    delay(250);
-    digitalWrite(ledPin, LOW);
-    delay(250);
-    digitalWrite(ledPin, HIGH);
-    delay(250);
-    digitalWrite(ledPin, LOW);
-    delay(250);
-    digitalWrite(ledPin, HIGH);
-    delay(250);
-    digitalWrite(ledPin, LOW);
-    delay(250);
-    digitalWrite(ledPin, HIGH);
-    delay(250);
-    digitalWrite(ledPin, LOW);
-    delay(250);
-    digitalWrite(ledPin, HIGH);
-    delay(250);
-    digitalWrite(ledPin, LOW);
-    delay(250);
-    digitalWrite(ledPin, HIGH);
-    delay(3000);
-    digitalWrite(ledPin, LOW);
- 
-}
+const char* ssid = "sensors"; //fill in the network name
+const char* password = "n0n53n53"; //fill in the password
+const char* mqtt_server = "influx.itu.dk"; 
 
+WiFiClient espClient;
+PubSubClient client(espClient);
 
-// Callback function header
-void callback(char* topic, byte* payload, unsigned int length);
+//define TX and RX for Serial mp3 player
+#define TX D7
+#define RX D8
 
-WiFiClient wifiClient;
-PubSubClient client(server, 1883, callback, wifiClient);
+SerialMP3Player mp3(RX,TX);
 
+// configuring button's press length
+float pressLength_milliSeconds = 0;
+int goToLunch_milliSeconds = 100;
+int comeHere_milliSeconds = 2000; 
 
-void callMe(){
-  Serial.println("callMe");
-  ledFunc(callMe_led);
-}
+ // configuring button's pin
+int buttonPin = D5;
+
+ // configuring LED's pins
+int const_LED_pin = D7;
+int func_ledPin = D6;
+
+//configuation for const_LED_func 
+int ledState = LOW;
+long previousMillis = 0;
+long interval = 1000;
 
 void goToLunch(){
   Serial.println("goToLuch");
-  ledFunc(goToLuch_led);
+  mp3PlayerFunc(1);
+  ledFunc();
 }
 void comeHere(){
-  Serial.println("goToLuch");
-  ledFunc(comeHere_led);
+  Serial.println("come here");  
+  mp3PlayerFunc(2);
+  ledFunc();
 }
 
+// constant LED function 
+void const_LED_func(){
+  unsigned long currentMillis = millis();
+ 
+  if(currentMillis - previousMillis > interval) {
+    previousMillis = currentMillis;   
+    if (ledState == LOW)
+      ledState = HIGH;
+    else
+      ledState = LOW;
+    digitalWrite(const_LED_pin, ledState);
+  }  
+}
 
-// Callback function
+// red LED function -received message-
+void ledFunc(){
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(125);
+    digitalWrite(func_ledPin, LOW);
+    delay(125);
+    digitalWrite(func_ledPin, HIGH);
+    delay(3000);
+    digitalWrite(func_ledPin, LOW);
+}
+
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println("Recieved Message!");
   Serial.println(payload[0]);
+   if(payload[0] == 50){
+    comeHere();
+   }
   if(payload[0] == 49){
     goToLunch();
    }
-   if(payload[0] == 50){
-    callMe();
-   }
-   if(payload[0] == 51){
-    comeHere();
-   }
+}
+
+void setup_wifi() {
+  delay(10);
+  // We start by connecting to a WiFi network
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  randomSeed(micros());
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
 }
 
 
-void setup()
-{
-  Serial.begin(9600);
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
 
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
-  pinMode(5, OUTPUT);
-  pinMode(6, OUTPUT);
-  pinMode(7, OUTPUT);
 
- while (status != WL_CONNECTED) {
-    Serial.print("Attempting to connect to SSID: ");
-    Serial.println(ssid);
-    // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
-    status = WiFi.begin(ssid, pass);
-    // wait 7 seconds for connection:
-    delay(7000);
-  }
-
-  if (client.connect("ino_1","lock", "fah6eeroMaewieg1Ahqu9kaifohSho")) {
-    Serial.println("MQTT Connected");
-    client.subscribe("topic/test");
-  }else{
-    Serial.println(client.state());
+    // Attempt to connect
+    if (client.connect("ino_1")) {
+      Serial.println("connected");
+      // ... and resubscribe
+      client.subscribe("push");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
   }
 }
-void loop()
-{
-   button1State = digitalRead(button1Pin);
-   button2State = digitalRead(button2Pin);
-   button3State = digitalRead(button3Pin);
 
-   if(button1State == LOW){
-        client.publish("topic/test", "6");
-        delay(1000);
-   }
-   if(button2State == LOW){
-        client.publish("topic/test", "7");
-        delay(1000);
-   }
-   if(button3State == LOW){
-        client.publish("topic/test", "8");
-        delay(1000);
-   }
-   client.loop();
+void setup() {
+  pinMode(buttonPin, INPUT_PULLUP);     
+  pinMode(const_LED_pin, OUTPUT); 
+  pinMode(func_ledPin, OUTPUT); 
+  Serial.begin(115200);
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+   delay(250);
+ //select sd-card for Serial mp3 player 
+ mp3.sendCommand(CMD_SEL_DEV, 0, 2);   
+ delay(250);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  if (client.connected()){const_LED_func();}
+//  if(client.connected()){const_LED_func();}
+  client.loop();
+
+  while (digitalRead(buttonPin) == LOW ){ 
+    delay(100);  
+    pressLength_milliSeconds = pressLength_milliSeconds + 100;   
+    yield();
+  }
+  if (pressLength_milliSeconds >= comeHere_milliSeconds){
+
+       client.publish("push", "3");
+  }
+  else if(pressLength_milliSeconds >= goToLunch_milliSeconds){
+    
+       client.publish("push", "4");
+  }
+  pressLength_milliSeconds = 0;  
+}
+// mp3 player function 
+void mp3PlayerFunc(int type){
+  if(type == 1){
+     mp3.play(00000001); 
+    delay(1000);
+    mp3.stop();
+  }
+  else if (type == 2){
+    mp3.play(00000002); 
+    delay(1000);
+    mp3.stop();
+  }
 }
